@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Universal LL(1) Predictive Parser Generator | Compiler Design Studio</title>
+  <meta name="description" content="Universal LL(1) Predictive Parser Generator with dynamic CFG tokenization, FIRST/FOLLOW calculation, conflict detection, and interactive visual trace stepper.">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="./src/styles/tokens.css">
+  <link rel="stylesheet" href="./src/styles/main.css">
+  <link rel="stylesheet" href="./src/styles/components.css">
+
+  <!-- GSAP Core CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- Top App Header -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">
+            <span>LL(1) Predictive Parser Generator</span>
+            <span class="brand-badge">Universal CFG</span>
+          </div>
+          <div class="brand-subtitle">
+            Dynamic FIRST & FOLLOW • Conflict Detection • Visual Parse Stepper • Concrete Syntax Tree
+          </div>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Quick Preset Grammars -->
+        <div class="example-picker">
+          <label for="examples-select">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            Library:
+          </label>
+          <select id="examples-select" aria-label="Load Example Grammar"></select>
+        </div>
+
+        <!-- Dark / Light Theme Toggle -->
+        <button type="button" class="btn-icon" id="theme-toggle-btn" aria-label="Toggle Theme" title="Switch Theme"></button>
+      </div>
+    </header>
+
+    <!-- Global Status & Metric Summary Bar -->
+    <section class="status-bar" id="status-bar">
+      <div class="status-main">
+        <div class="status-pill status-pending" id="status-pill">
+          <span id="status-pill-text">Awaiting Analysis</span>
+        </div>
+        <div class="status-desc" id="status-desc">
+          Enter any valid Context-Free Grammar (CFG) or select a library example to begin.
+        </div>
+      </div>
+
+      <div class="metrics-strip" id="metrics-strip">
+        <div class="metric-badge">
+          <span>Start:</span>
+          <strong id="metric-start-symbol">—</strong>
+        </div>
+        <div class="metric-badge">
+          <span>Non-Terminals:</span>
+          <strong id="metric-non-terminals">0</strong>
+        </div>
+        <div class="metric-badge">
+          <span>Terminals:</span>
+          <strong id="metric-terminals">0</strong>
+        </div>
+        <div class="metric-badge">
+          <span>Productions:</span>
+          <strong id="metric-productions">0</strong>
+        </div>
+        <div class="metric-badge">
+          <span>Nullable:</span>
+          <strong id="metric-nullable">None</strong>
+        </div>
+        <div class="metric-badge">
+          <span>Conflicts:</span>
+          <strong id="metric-conflicts">0</strong>
+        </div>
+        <div class="metric-badge">
+          <span>Left Recursion:</span>
+          <strong id="metric-recursion">None</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Diagnostics / Auto-Fix Banners Area -->
+    <div id="diagnostics-area"></div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs-wrapper" aria-label="Generator Navigation Tabs">
+      <button type="button" class="nav-tab active" data-tab="grammar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        <span>Grammar &amp; Symbols</span>
+      </button>
+
+      <button type="button" class="nav-tab" data-tab="first">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 14 14"></polyline>
+        </svg>
+        <span>FIRST Sets</span>
+      </button>
+
+      <button type="button" class="nav-tab" data-tab="follow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+        <span>FOLLOW Sets</span>
+      </button>
+
+      <button type="button" class="nav-tab" data-tab="table">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+          <line x1="3" y1="15" x2="21" y2="15"></line>
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+          <line x1="15" y1="3" x2="15" y2="21"></line>
+        </svg>
+        <span>Parsing Table &amp; Conflicts</span>
+      </button>
+
+      <button type="button" class="nav-tab" data-tab="parser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        <span>Predictive Parser &amp; Trace</span>
+      </button>
+
+      <button type="button" class="nav-tab" data-tab="tree">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="5" r="3"></circle>
+          <circle cx="5" cy="19" r="3"></circle>
+          <circle cx="19" cy="19" r="3"></circle>
+          <line x1="12" y1="8" x2="5" y2="16"></line>
+          <line x1="12" y1="8" x2="19" y2="16"></line>
+        </svg>
+        <span>Concrete Syntax Tree</span>
+      </button>
+
+      <button type="button" class="nav-tab" data-tab="theory">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <span>How It Works &amp; Theory</span>
+      </button>
+    </nav>
+
+    <!-- Main Content Panels -->
+    <main class="tab-content-area">
+
+      <!-- ============================================== -->
+      <!-- TAB 1: Grammar Input & Analysis -->
+      <!-- ============================================== -->
+      <section class="tab-pane active" id="tab-pane-grammar">
+        <div class="grammar-grid">
+
+          <!-- Left Column: Grammar Editor -->
+          <div class="panel-card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>Grammar Specification</span>
+              </div>
+              <div class="card-actions">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-format" title="Format grammar spacing">
+                  Format
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-clear" title="Clear editor">
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div class="editor-wrapper">
+              <div class="editor-toolbar">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Quick Symbol Insertion:</span>
+                <div class="quick-symbols">
+                  <button type="button" class="sym-chip" data-insert="->">-&gt;</button>
+                  <button type="button" class="sym-chip" data-insert="|">|</button>
+                  <button type="button" class="sym-chip" data-insert="ε">ε (eps)</button>
+                  <button type="button" class="sym-chip" data-insert="id">id</button>
+                  <button type="button" class="sym-chip" data-insert="num">num</button>
+                  <button type="button" class="sym-chip" data-insert="(">(</button>
+                  <button type="button" class="sym-chip" data-insert=")">)</button>
+                </div>
+              </div>
+
+              <textarea
+                id="grammar-input"
+                class="grammar-textarea"
+                rows="10"
+                placeholder="Enter CFG productions, e.g.&#10;E -> T E'&#10;E' -> + T E' | ε&#10;T -> F T'&#10;T' -> * F T' | ε&#10;F -> ( E ) | id"
+                spellcheck="false"
+              ></textarea>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">
+                  Supports <code>-&gt;</code>, <code>|</code>, <code>ε</code>, multi-character terminals, and primed symbols (<code>E'</code>).
+                </span>
+                <button type="button" class="btn btn-success" id="btn-generate">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>Generate Parser</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Discovered Grammar Information -->
+          <div class="panel-card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span>Discovered Grammar Structure</span>
+              </div>
+            </div>
+
+            <!-- Start Symbol Picker -->
+            <div class="symbol-group">
+              <div class="symbol-group-label">Start Symbol Selection</div>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <select id="start-symbol-select" class="input-field" style="padding:0.45rem 0.75rem; font-size:0.9rem; max-width:240px;" aria-label="Select Start Symbol"></select>
+                <span style="font-size:0.8rem; color:var(--text-muted);">(First LHS is default)</span>
+              </div>
+            </div>
+
+            <!-- Non-Terminals -->
+            <div class="symbol-group">
+              <div class="symbol-group-label">Non-Terminals (V<sub>N</sub>)</div>
+              <div class="symbol-chips-container" id="non-terminals-list"></div>
+            </div>
+
+            <!-- Terminals -->
+            <div class="symbol-group">
+              <div class="symbol-group-label">Discovered Terminals (V<sub>T</sub>)</div>
+              <div class="symbol-chips-container" id="terminals-list"></div>
+            </div>
+
+            <!-- Nullable Symbols -->
+            <div class="symbol-group">
+              <div class="symbol-group-label">Nullable Non-Terminals (A ⇒* ε)</div>
+              <div class="symbol-chips-container" id="nullable-list"></div>
+            </div>
+
+            <!-- Productions List -->
+            <div class="symbol-group">
+              <div class="symbol-group-label">Normalized Production Rules</div>
+              <div id="productions-list" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; padding-right: 0.5rem;"></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 2: FIRST Sets -->
+      <!-- ============================================== -->
+      <section class="tab-pane" id="tab-pane-first">
+        <div class="panel-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 14 14"></polyline>
+              </svg>
+              <span>Dynamic FIRST Sets</span>
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-muted);">
+              Calculated using fixed-point iteration until convergence. Click "Show Derivation" to view exact rules applied.
+            </div>
+          </div>
+
+          <div class="sets-grid" id="first-sets-container"></div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 3: FOLLOW Sets -->
+      <!-- ============================================== -->
+      <section class="tab-pane" id="tab-pane-follow">
+        <div class="panel-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+              <span>Dynamic FOLLOW Sets</span>
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-muted);">
+              Rule 1: $ in FOLLOW(Start) • Rule 2: FIRST(β)-{ε} in FOLLOW(B) • Rule 3/4: FOLLOW(A) in FOLLOW(B) when β derives ε.
+            </div>
+          </div>
+
+          <div class="sets-grid" id="follow-sets-container"></div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 4: Parsing Table & Conflict Detection -->
+      <!-- ============================================== -->
+      <section class="tab-pane" id="tab-pane-table">
+        <div class="panel-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="3" y1="15" x2="21" y2="15"></line>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+              <span>LL(1) Predictive Parsing Table M[NonTerminal, Terminal]</span>
+            </div>
+            <div class="card-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-export-table-csv">
+                Export CSV
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-export-table-md">
+                Export Markdown
+              </button>
+            </div>
+          </div>
+
+          <!-- Conflict Cards if any -->
+          <div id="conflicts-area" class="alert-box alert-danger" style="display:none; flex-direction:column; gap:0.75rem;">
+            <div style="font-weight:700; font-size:1rem; display:flex; align-items:center; gap:0.5rem;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>LL(1) Conflict Detection Report</span>
+            </div>
+            <div id="conflicts-list" class="conflicts-list"></div>
+          </div>
+
+          <!-- Scrollable Table -->
+          <div class="table-scroll-container" id="ll1-table-container"></div>
+          <div style="font-size:0.8rem; color:var(--text-muted); display:flex; gap:1.5rem; align-items:center;">
+            <span>💡 <strong>Tip:</strong> Click any cell to inspect its derivation justification. Red cells indicate LL(1) non-determinism.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 5: Predictive Parser & Trace Stepper -->
+      <!-- ============================================== -->
+      <section class="tab-pane" id="tab-pane-parser">
+        <div class="panel-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>Predictive Parser Simulation</span>
+            </div>
+          </div>
+
+          <!-- Input Control Box -->
+          <div class="parser-control-box">
+            <div class="input-row">
+              <input
+                type="text"
+                id="parse-input-string"
+                class="input-field"
+                placeholder="Enter string of terminals, e.g. id + id * id"
+                aria-label="Input string for predictive parser"
+              >
+              <button type="button" class="btn btn-primary" id="btn-parse">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Parse Input String</span>
+              </button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+              <span style="font-size:0.8rem; color:var(--text-muted);">Quick Samples:</span>
+              <div id="sample-input-buttons" style="display:flex; gap:0.4rem; flex-wrap:wrap;"></div>
+            </div>
+          </div>
+
+          <!-- Result Alert -->
+          <div id="parse-result-alert" class="alert-box alert-info">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <div class="alert-content">
+              <div class="alert-title">Ready to Parse</div>
+              <div>Enter a valid string of terminals to generate an interactive step-by-step trace.</div>
+            </div>
+          </div>
+
+          <!-- Interactive Stepper Panel -->
+          <div class="stepper-panel" id="stepper-panel">
+            <div class="stepper-controls">
+              <div class="playback-buttons">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-step-reset" title="Reset to Start">
+                  ⏮ Reset
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-step-back" title="Previous Step">
+                  ◀ Step Back
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-play-pause" title="Play / Pause Animation">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  Play
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-step-forward" title="Next Step">
+                  Step Forward ▶
+                </button>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:1rem;">
+                <span class="badge badge-nt" id="current-step-badge">Step 0 of 0</span>
+                <span style="font-size:0.85rem; color:var(--text-secondary);" id="step-action-desc">—</span>
+              </div>
+
+              <div class="speed-selector">
+                <label for="step-speed-select">Speed:</label>
+                <select id="step-speed-select">
+                  <option value="1500">0.5x (Slow)</option>
+                  <option value="1000" selected>1.0x (Normal)</option>
+                  <option value="500">2.0x (Fast)</option>
+                  <option value="250">4.0x (Turbo)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Live Animated Visual Arena: Stack & Input Tape -->
+            <div class="visual-arena">
+              <!-- Left: Visual Stack -->
+              <div class="arena-box">
+                <div class="arena-label">
+                  <span>Parse Stack (Bottom &rarr; Top)</span>
+                  <span style="color:var(--primary); font-family:var(--font-mono);">Stack Top highlighted</span>
+                </div>
+                <div class="stack-track" id="visual-stack"></div>
+              </div>
+
+              <!-- Right: Visual Input Tape -->
+              <div class="arena-box">
+                <div class="arena-label">
+                  <span>Input Token Stream</span>
+                  <span style="color:var(--success); font-family:var(--font-mono);">Current Lookahead highlighted</span>
+                </div>
+                <div class="tape-track" id="visual-tape"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trace Table -->
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; font-size:1rem;">Complete Derivation Trace</span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-trace-md">
+              Export Trace (Markdown)
+            </button>
+          </div>
+
+          <div class="trace-table-container">
+            <table class="trace-table">
+              <thead>
+                <tr>
+                  <th style="width: 70px;">Step</th>
+                  <th style="width: 25%;">Stack</th>
+                  <th style="width: 25%;">Remaining Input</th>
+                  <th>Action / Production Applied</th>
+                  <th style="width: 100px;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="trace-table-body">
+                <tr>
+                  <td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">
+                    No parsing trace available.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 6: Concrete Syntax Tree Visualizer -->
+      <!-- ============================================== -->
+      <section class="tab-pane" id="tab-pane-tree">
+        <div class="panel-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="5" r="3"></circle>
+                <circle cx="5" cy="19" r="3"></circle>
+                <circle cx="19" cy="19" r="3"></circle>
+                <line x1="12" y1="8" x2="5" y2="16"></line>
+                <line x1="12" y1="8" x2="19" y2="16"></line>
+              </svg>
+              <span>Dynamic Concrete Syntax Parse Tree</span>
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-muted);">
+              Generated in real-time as productions are expanded during top-down predictive parsing.
+            </div>
+          </div>
+
+          <div class="tree-container" id="parse-tree-container">
+            <div class="tree-controls">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-tree-zoom-in" title="Zoom In">+</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-tree-zoom-out" title="Zoom Out">−</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-tree-reset" title="Reset View">Reset</button>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:1.5rem; align-items:center; font-size:0.85rem; color:var(--text-muted);">
+            <div style="display:flex; align-items:center; gap:0.4rem;">
+              <span class="badge badge-nt">Non-Terminal</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.4rem;">
+              <span class="badge badge-term">Terminal Token</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.4rem;">
+              <span class="badge badge-eps">ε (Epsilon)</span>
+            </div>
+            <span>• Scroll mouse wheel to zoom, drag mouse to pan across tree.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- TAB 7: Theory & How It Works -->
+      <!-- ============================================== -->
+      <section class="tab-pane" id="tab-pane-theory">
+        <div class="theory-grid">
+
+          <div class="theory-card">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              What is an LL(1) Parser?
+            </h3>
+            <p>
+              An <strong>LL(1) parser</strong> is a deterministic, top-down predictive parser for Context-Free Grammars. The name stands for:
+            </p>
+            <ul style="margin-left:1.25rem; display:flex; flex-direction:column; gap:0.35rem;">
+              <li><strong>L:</strong> Reads input from <em>Left-to-Right</em>.</li>
+              <li><strong>L:</strong> Constructs a <em>Leftmost Derivation</em>.</li>
+              <li><strong>(1):</strong> Uses <em>1 token of lookahead</em> to make deterministic parsing decisions without backtracking.</li>
+            </ul>
+          </div>
+
+          <div class="theory-card">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 14 14"></polyline>
+              </svg>
+              FIRST Set Computation
+            </h3>
+            <p>
+              For any grammar symbol <code>X</code>, <code>FIRST(X)</code> is the set of terminals that can begin strings derived from <code>X</code>:
+            </p>
+            <ul style="margin-left:1.25rem; display:flex; flex-direction:column; gap:0.35rem;">
+              <li>If <code>X</code> is a terminal, <code>FIRST(X) = { X }</code>.</li>
+              <li>If <code>X → ε</code> is a production, <code>ε ∈ FIRST(X)</code>.</li>
+              <li>For <code>X → Y1 Y2 ... Yk</code>, add <code>FIRST(Y1) - {ε}</code>. If <code>Y1 ⇒* ε</code>, add <code>FIRST(Y2) - {ε}</code>, cascading until a non-nullable symbol is reached.</li>
+              <li>If all <code>Y1 ... Yk ⇒* ε</code>, then <code>ε ∈ FIRST(X)</code>.</li>
+            </ul>
+          </div>
+
+          <div class="theory-card">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+              FOLLOW Set Computation
+            </h3>
+            <p>
+              For non-terminal <code>A</code>, <code>FOLLOW(A)</code> is the set of terminals that can appear immediately to the right of <code>A</code> in some sentential form:
+            </p>
+            <ul style="margin-left:1.25rem; display:flex; flex-direction:column; gap:0.35rem;">
+              <li><strong>Rule 1:</strong> Put <code>$</code> (input end-marker) into <code>FOLLOW(StartSymbol)</code>.</li>
+              <li><strong>Rule 2:</strong> For <code>A → α B β</code>, add <code>FIRST(β) - {ε}</code> to <code>FOLLOW(B)</code>.</li>
+              <li><strong>Rule 3 &amp; 4:</strong> If <code>A → α B</code> or <code>A → α B β</code> where <code>β ⇒* ε</code>, everything in <code>FOLLOW(A)</code> is in <code>FOLLOW(B)</code>.</li>
+            </ul>
+          </div>
+
+          <div class="theory-card">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+              </svg>
+              LL(1) Table Construction Rules
+            </h3>
+            <p>
+              For every production <code>A → α</code>:
+            </p>
+            <ul style="margin-left:1.25rem; display:flex; flex-direction:column; gap:0.35rem;">
+              <li>For each terminal <code>a ∈ FIRST(α) - {ε}</code>, add <code>A → α</code> to table entry <code>M[A, a]</code>.</li>
+              <li>If <code>ε ∈ FIRST(α)</code>, then for each terminal or end-marker <code>b ∈ FOLLOW(A)</code>, add <code>A → α</code> to <code>M[A, b]</code>.</li>
+              <li>Any cell containing <strong>2 or more distinct productions</strong> indicates an <strong>LL(1) Conflict</strong>.</li>
+            </ul>
+          </div>
+
+          <div class="theory-card">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              LL(1) Conflicts &amp; Decidability
+            </h3>
+            <p>
+              Two primary types of LL(1) non-deterministic conflicts can occur:
+            </p>
+            <ul style="margin-left:1.25rem; display:flex; flex-direction:column; gap:0.35rem;">
+              <li><strong>FIRST/FIRST Conflict:</strong> Two alternatives of <code>A</code> derive words starting with the same terminal (e.g. <code>A → a B | a C</code>). Resolved via <em>Left Factoring</em>.</li>
+              <li><strong>FIRST/FOLLOW Conflict:</strong> Occurs when <code>ε ∈ FIRST(α)</code> and <code>FIRST(α) ∩ FOLLOW(A) ≠ ∅</code>. Often caused by ambiguous constructs like the dangling else.</li>
+              <li><strong>CFG Ambiguity Decidability:</strong> Detecting whether an arbitrary CFG is ambiguous is <strong>undecidable</strong> (proven via Post Correspondence Problem). LL(1) conflict detection checks the specific decidable condition for predictive parsing.</li>
+            </ul>
+          </div>
+
+          <div class="theory-card">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              Direct Left Recursion Elimination
+            </h3>
+            <p>
+              Direct left recursion occurs when <code>A → A α | β</code>. A predictive parser would loop infinitely trying to expand <code>A</code>.
+            </p>
+            <p>
+              Standard transformation replaces:
+            </p>
+            <div style="background:var(--bg-app); padding:0.5rem; border-radius:6px; font-family:var(--font-mono); font-size:0.82rem; margin:0.4rem 0;">
+              A → β A'<br>
+              A' → α A' | ε
+            </div>
+            <p>
+              This generator detects left recursion and provides one-click automatic elimination.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- Main ES Module Bootstrap -->
+  <script type="module" src="./src/ui/app.js"></script>
+</body>
+</html>

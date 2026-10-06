@@ -1,0 +1,20 @@
+{
+  "name": "ll1-predictive-parser-generator",
+  "version": "1.0.0",
+  "description": "Universal LL(1) Predictive Parser Generator with dynamic FIRST/FOLLOW, conflict detection, and interactive visual trace",
+  "type": "module",
+  "scripts": {
+    "test": "node src/tests/engine-tests.js",
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "compiler-design",
+    "ll1-parser",
+    "cfg",
+    "first-follow",
+    "predictive-parser"
+  ],
+  "author": "Subhajit Das",
+  "license": "MIT"
+}
